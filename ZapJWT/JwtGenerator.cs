@@ -258,5 +258,109 @@ namespace ZapJWT
                 return principal;
             }
         }
+
+
+
+        /// <summary>
+        /// 輸入一個 PEM 格式的私鑰字串，轉換回 RSACryptoServiceProvider 物件
+        /// </summary>
+        /// <param name="pem">
+        /// PEM 格式私鑰字串，必須包含 "-----BEGIN RSA PRIVATE KEY-----" 與 "-----END RSA PRIVATE KEY-----" 標記
+        /// </param>
+        /// <returns>RSACryptoServiceProvider 物件</returns>
+        public static RSACryptoServiceProvider LoadPrivateKeyFromPem(string pem)
+        {
+            // 移除標頭、結尾以及換行符號
+            string header = "-----BEGIN RSA PRIVATE KEY-----";
+            string footer = "-----END RSA PRIVATE KEY-----";
+            string key = pem.Replace(header, "")
+                            .Replace(footer, "")
+                            .Replace("\r", "")
+                            .Replace("\n", "")
+                            .Trim();
+
+            byte[] keyBytes = Convert.FromBase64String(key);
+            return DecodeRsaPrivateKey(keyBytes);
+        }
+
+        /// <summary>
+        /// 從 DER 編碼的 PKCS#1 格式私鑰資料轉換成 RSACryptoServiceProvider 物件
+        /// </summary>
+        private static RSACryptoServiceProvider DecodeRsaPrivateKey(byte[] keyBytes)
+        {
+            using (var ms = new MemoryStream(keyBytes))
+            using (var reader = new BinaryReader(ms))
+            {
+                // 檢查 SEQUENCE 標記
+                byte bt = reader.ReadByte();
+                if (bt != 0x30)
+                    throw new Exception("Invalid PEM format: expected SEQUENCE");
+
+                // 讀取整個 SEQUENCE 的長度（但此值本身可忽略）
+                int seqLength = ReadLength(reader);
+
+                // 讀取 version
+                bt = reader.ReadByte();
+                if (bt != 0x02)
+                    throw new Exception("Invalid PEM format: expected INTEGER for version");
+                int versionLength = ReadLength(reader);
+                byte[] version = reader.ReadBytes(versionLength);
+
+                // 依序讀取 RSA 私鑰的各個 INTEGER 成員
+                RSAParameters parameters = new RSAParameters();
+                parameters.Modulus = ReadInteger(reader);
+                parameters.Exponent = ReadInteger(reader);
+                parameters.D = ReadInteger(reader);
+                parameters.P = ReadInteger(reader);
+                parameters.Q = ReadInteger(reader);
+                parameters.DP = ReadInteger(reader);
+                parameters.DQ = ReadInteger(reader);
+                parameters.InverseQ = ReadInteger(reader);
+
+                RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
+                rsa.ImportParameters(parameters);
+                return rsa;
+            }
+        }
+
+
+        /// <summary>
+        /// 讀取 DER 格式中編碼的長度
+        /// </summary>
+        private static int ReadLength(BinaryReader reader)
+        {
+            int length = reader.ReadByte();
+            if ((length & 0x80) != 0)
+            {
+                int byteCount = length & 0x7F;
+                byte[] lengthBytes = reader.ReadBytes(byteCount);
+                int result = 0;
+                for (int i = 0; i < lengthBytes.Length; i++)
+                {
+                    result = (result << 8) + lengthBytes[i];
+                }
+                return result;
+            }
+            return length;
+        }
+
+        /// <summary>
+        /// 讀取 DER 格式中編碼的 INTEGER 整數
+        /// </summary>
+        private static byte[] ReadInteger(BinaryReader reader)
+        {
+            if (reader.ReadByte() != 0x02)
+                throw new Exception("Expected INTEGER tag");
+            int length = ReadLength(reader);
+            byte[] integerBytes = reader.ReadBytes(length);
+            // 若有前導零，則移除之
+            if (integerBytes[0] == 0x00)
+            {
+                byte[] tmp = new byte[integerBytes.Length - 1];
+                Array.Copy(integerBytes, 1, tmp, 0, tmp.Length);
+                return tmp;
+            }
+            return integerBytes;
+        }
     }
 }

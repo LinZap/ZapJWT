@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -56,6 +57,19 @@ namespace ZapJWT
                 Console.WriteLine("\nJWT 驗證失敗！");
                 Console.WriteLine("錯誤訊息：" + ex.Message);
             }
+
+            try
+            {
+                RSACryptoServiceProvider rsaFromPem = JwtGenerator.LoadPrivateKeyFromPem(pemPrivateKey);
+                Console.WriteLine("\n從 PEM 載入私鑰成功！");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("\n從 PEM 載入私鑰失敗！");
+                Console.WriteLine("錯誤訊息：" + ex.Message);
+            }
+
+
 
             Console.WriteLine("\n按任一鍵退出...");
             Console.ReadKey();

@@ -50,6 +50,23 @@ R7lltdZoDY41RMZ8+vvcDRQ3jhYnqIjE1cZ8+641dC/daJgc6KOujT307Z98e3DnL3E3
 ```
 
 
+## 將 PEM 私鑰轉換成私鑰物件
+
+由於私鑰可能是需要重複利用的(存成 `.pem` 檔案)，不會一直產生新的，因此可能需要載入已經做好的 PEM 格式私鑰成 `RSACryptoServiceProvider` 私鑰物件
+
+```csharp
+try
+{
+    RSACryptoServiceProvider rsa = JwtGenerator.LoadPrivateKeyFromPem(pemPrivateKey);
+    Console.WriteLine("\n從 PEM 載入私鑰成功！");
+}
+catch (Exception ex)
+{
+    Console.WriteLine("\n從 PEM 載入私鑰失敗！");
+    Console.WriteLine("錯誤訊息：" + ex.Message);
+}
+```
+
 ## 基於私鑰產生公鑰資訊
 
 根據私鑰產生公鑰資訊: 模數 (n), 公開指數 (e), 私鑰指數 (d)
